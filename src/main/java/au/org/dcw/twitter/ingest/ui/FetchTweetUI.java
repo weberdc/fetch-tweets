@@ -49,8 +49,6 @@ public class FetchTweetUI extends JPanel {
         idText.setToolTipText("Paste or drag your tweet/status ID or URL here");
         idLabel.setLabelFor(idText);
 
-        idText.setText("919984305559961600");
-
         gbc = new GridBagConstraints();
         gbc.gridx = 1;
         gbc.weightx = 1.0;
@@ -83,13 +81,6 @@ public class FetchTweetUI extends JPanel {
         final JScrollPane jsonScrollPane = new JScrollPane(jsonTextArea);
         jsonScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         jsonScrollPane.setPreferredSize(new Dimension(250, 250));
-
-        final StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 10000; i++) {
-            sb.append('x');
-            if (Math.random() < 0.1) sb.append(' ');
-        }
-        jsonTextArea.setText(sb.toString());
 
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
