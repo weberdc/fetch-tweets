@@ -59,10 +59,6 @@ import javax.swing.*;
  */
 class FetchTweets {
 
-//    /** Twitter's preferred date time format. */
-//    public static final DateTimeFormatter TWITTER_TIMESTAMP_FORMAT =
-//        DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss ZZZ yyyy", Locale.ENGLISH);
-
     /**
      * Set to max number of IDs accepted by https://api.twitter.com/1.1/statuses/lookup.json
      *
@@ -107,8 +103,6 @@ class FetchTweets {
     }
 
     public void run() throws IOException {
-
-        //reportConfiguration();
 
         // establish resources
         final Configuration twitterConfig = makeTwitterConfig(credentialsFile, debug);
