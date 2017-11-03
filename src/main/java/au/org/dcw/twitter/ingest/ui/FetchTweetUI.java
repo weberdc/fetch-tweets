@@ -28,15 +28,12 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 public class FetchTweetUI extends JPanel {
-    private final Twitter twitter;
 
     public FetchTweetUI(Twitter twitter) {
-        this.twitter = twitter;
-
-        buildUI();
+        buildUI(twitter);
     }
 
-    private void buildUI() {
+    private void buildUI(final Twitter twitter) {
 
         // structure
         setLayout(new GridBagLayout());
@@ -60,7 +57,7 @@ public class FetchTweetUI extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         this.add(idText, gbc);
 
-        final JButton clearButton = new JButton("X");
+        final JButton clearButton = new JButton(UIManager.getIcon("InternalFrame.closeIcon"));
         clearButton.setToolTipText("Clear the ID field");
 
         gbc = new GridBagConstraints();
@@ -68,6 +65,7 @@ public class FetchTweetUI extends JPanel {
         this.add(clearButton, gbc);
 
         final JButton getButton = new JButton("Fetch");
+        getButton.setToolTipText("Fetch the JSON for this tweet");
         getButton.requestFocus();
 
         gbc = new GridBagConstraints();
