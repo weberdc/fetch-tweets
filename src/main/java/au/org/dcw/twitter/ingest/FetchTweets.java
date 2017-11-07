@@ -18,17 +18,6 @@ package au.org.dcw.twitter.ingest;
 import au.org.dcw.twitter.ingest.ui.FetchTweetUI;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
-import java.util.stream.Collectors;
-
 import com.google.common.collect.Lists;
 import twitter4j.RateLimitStatus;
 import twitter4j.RateLimitStatusEvent;
@@ -42,7 +31,18 @@ import twitter4j.TwitterObjectFactory;
 import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.WindowConstants;
+import java.io.File;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
+import java.util.stream.Collectors;
 
 
 /**
@@ -65,23 +65,23 @@ class FetchTweets {
      *
      * @see Twitter's <a href="https://developer.twitter.com/en/docs/tweets/post-and-engage/api-reference/get-statuses-lookup">GET statuses/lookup</a>
      */
-    public static final int REFETCH_BATCH_SIZE = 100;
+    private static final int REFETCH_BATCH_SIZE = 100;
 
     @Parameter(names = {"-i", "--id", "--ids"}, description = "ID of tweet(s) to fetch")
-    public List<String> idStrs = Lists.newArrayList();
+    private List<String> idStrs = Lists.newArrayList();
 
     @Parameter(names = {"-f", "--ids-file"}, description = "File of tweet IDs to fetch (one per line)")
-    public String infile;
+    private String infile;
 
     @Parameter(names = {"-c", "--credentials"},
                description = "Properties file with Twitter OAuth credentials")
-    public String credentialsFile = "./twitter.properties";
+    private String credentialsFile = "./twitter.properties";
 
     @Parameter(names = {"-v", "--debug", "--verbose"}, description = "Debug mode")
-    public boolean debug = false;
+    private boolean debug = false;
 
     @Parameter(names = {"-h", "-?", "--help"}, description = "Help")
-    public static boolean help = false;
+    private static boolean help = false;
 
     public static void main(String[] args) throws IOException {
         FetchTweets theApp = new FetchTweets();
@@ -103,7 +103,7 @@ class FetchTweets {
         theApp.run();
     }
 
-    public void run() throws IOException {
+    private void run() throws IOException {
 
         // establish resources
         final Configuration twitterConfig = makeTwitterConfig(credentialsFile, debug);
@@ -120,26 +120,28 @@ class FetchTweets {
             }
         });
 
-        if (infile == null && idStrs.isEmpty()) {
-            // Create and set up the window.
+        if (inGuiMode()) {
+            // Create and set up the window
             JFrame frame = new JFrame("Fetch Tweet");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-            JComponent ui = new FetchTweetUI(twitter);
-            frame.setContentPane(ui);
+            JComponent gui = new FetchTweetUI(twitter, debug);
+            frame.setContentPane(gui);
 
             // Display the window
-            frame.pack();
-            frame.setSize(500, 500);
+            frame.setSize(500, 700);
             frame.setVisible(true);
+
         } else {
 
             // read in tweet IDs
             final List<Long> tweetIDs = Lists.newArrayList();
 
+            // specified on the commandline
             if (! idStrs.isEmpty()) {
                 tweetIDs.addAll(idStrs.stream().map(Long::parseLong).collect(Collectors.toList()));
             }
+            // referred to in a nearby file
             if (infile != null) {
                 tweetIDs.addAll(Files
                     .lines(Paths.get(infile))
@@ -149,16 +151,22 @@ class FetchTweets {
                 );
             }
 
-            Lists.partition(tweetIDs, REFETCH_BATCH_SIZE).stream().forEach( batchOfIDs -> {
+            // fetch in batches
+            Lists.partition(tweetIDs, REFETCH_BATCH_SIZE).forEach( batchOfIDs -> {
+                // prepare arguments for call to Twitter
                 final long[] arrayOfIDs = new long[batchOfIDs.size()];
                 for (int i = 0; i < batchOfIDs.size(); i++) {
                     arrayOfIDs[i] = batchOfIDs.get(i);
                 }
+
+                // hit Twitter's API
                 ResponseList<Status> response = null;
                 try {
                     response = twitter.lookup(arrayOfIDs);
 
-                    response.stream().forEach ( tweet -> {
+                    response.forEach ( tweet -> {
+                        // NB get Twitter's raw JSON, don't convert Twitter4J objs to JSON
+                        // via Jackson (they different structures & field names)
                         String rawJSON = TwitterObjectFactory.getRawJSON(tweet);
                         System.out.println(rawJSON);
                     });
@@ -168,10 +176,20 @@ class FetchTweets {
                     System.err.println("Attempting to continue...");
                 }
                 if (response != null) {
+                    // Respect Twitter's authoritay on rate limits
                     maybeDoze(response.getRateLimitStatus());
                 }
             });
         }
+    }
+
+    /**
+     * Says yes to GUI mode if no IDs are referred to on the commandline.
+     *
+     * @return True if the GUI should be launched.
+     */
+    private boolean inGuiMode() {
+        return infile == null && idStrs.isEmpty();
     }
 
     /**
@@ -250,7 +268,6 @@ class FetchTweets {
      * user is asked to type it in via stdin.
      *
      * @return A {@link Properties} map with proxy credentials.
-     * @throws IOException if there's a problem reading the proxy info file.
      */
     private static Properties loadProxyProperties() {
         final Properties properties = new Properties();
