@@ -12,7 +12,18 @@ A tool to fetch tweets, with commandline and GUI modes.
 This app will look for tweet IDs on the commandline, or from a file specified on
 the commandline, or will launch a GUI into which can be pasted individual tweet IDs
 or URLs, which can then be fetched. In command line mode, the JSON for the retrieved
-tweets is sent to `stdout`.
+tweets is sent to `stdout`. In GUI mode, the raw JSON is provided along with a
+version stripped of many of the fields to make it easier to avoid collecting sensitive
+information. Future versions may allow these fields to be configurable. The fields
+retained at the moment are:
+
+ + `created_at`
+ + `text`
+ + `user.screen_name`
+ + `coordinates`
+ + `place`
+ + `entities.media` (this can also be removed by using the provided checkbox)
+ 
 
 Twitter credentials are looked for in `"./twitter.properties"`, and proxy info
 is looked for in `"./proxy.properties"`. Commandline options for the input file,
@@ -25,10 +36,11 @@ mode.
  + Java Development Kit 1.8
  + [Twitter4J](http://twitter4j.org) (Apache 2.0 licence)
    + depends on [JSON](http://json.org) ([JSON licence](http://www.json.org/license.html))
- + [Google Guava](https://github.com/google/guava) (Apache 2.0 licence) + [FasterXML](http://wiki.fasterxml.com/JacksonHome) (Apache 2.0 licence)
+ + [Google Guava](https://github.com/google/guava) (Apache 2.0 licence) 
+ + [FasterXML](http://wiki.fasterxml.com/JacksonHome) (Apache 2.0 licence)
  + [jcommander](http://jcommander.org) (Apache 2.0 licence)
 
-Built with [Gradle 4.3.1](http://gradle.org), included via the wrapper.
+Built with [Gradle 4.3](http://gradle.org), included via the wrapper.
 
 
 ## To Build

@@ -60,7 +60,8 @@ import java.util.stream.IntStream;
  * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
  * the Tweet, and a valid JSON subset of the Tweet, either of which can be copied by
  * clicking in their text areas or using the copy buttons. Fields which are retained
- * in the subset are declared in {@link #FIELDS_TO_KEEP1}.</p>
+ * in the subset are declared in {@link #FIELDS_TO_KEEP1} and {@link #FIELDS_TO_KEEP2}
+ * (the latter ignores the Tweet's <code>entities.media</code> field).</p>
  *
  * TODO Make {@link #FIELDS_TO_KEEP1} configurable.
  */
@@ -72,7 +73,7 @@ public class FetchTweetUI extends JPanel {
     private static final List<String> FIELDS_TO_KEEP1 = Arrays.asList(
         "created_at", "text", "user.screen_name", "coordinates", "place", "entities.media"
     );
-    // skips media, in case images are sensitive
+    // skips entities.media, in case images are sensitive
     private static final List<String> FIELDS_TO_KEEP2 = Arrays.asList(
         "created_at", "text", "user.screen_name", "coordinates", "place"
     );
@@ -85,6 +86,8 @@ public class FetchTweetUI extends JPanel {
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
     private JTextArea strippedJsonTextArea;
+    private JCheckBox skipImagesCheckbox;
+    private boolean errorState;
 
 
     /**
@@ -173,7 +176,7 @@ public class FetchTweetUI extends JPanel {
         this.add(clearButton, gbc);
 
         final JButton fetchButton = new JButton("Fetch");
-        fetchButton.setToolTipText("Fetch the JSON for this tweet");
+        fetchButton.setToolTipText("Fetch the JSON for this tweet, put it below and in the copy buffer");
         fetchButton.requestFocus();
 
         gbc = new GridBagConstraints();
@@ -181,6 +184,7 @@ public class FetchTweetUI extends JPanel {
         gbc.gridy = row - 1;
         gbc.insets = new Insets(0, 2, 0, 0);
         this.add(fetchButton, gbc);
+
 
         // Row 2: titled panel with scrollable JSON text area and copy button
         row = 2;
@@ -201,9 +205,9 @@ public class FetchTweetUI extends JPanel {
 
         // Row 3: skip-images checkbox
         row = 3;
-        final JCheckBox skipImagesCheckbox = new JCheckBox("Skip images?");
+        skipImagesCheckbox = new JCheckBox("Skip images?");
         skipImagesCheckbox.setSelected(false);
-        skipImagesCheckbox.setToolTipText("Hit \"Fetch\" again if you change this.");
+        skipImagesCheckbox.setToolTipText("Select this to remove the Tweet's media field");
 
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -235,12 +239,15 @@ public class FetchTweetUI extends JPanel {
         // BEHAVIOUR
         // clear the text field
         clearButton.addActionListener(e -> tweetIdText.setText(""));
+        // update the stripped JSON anytime the checkbox is changed
+        skipImagesCheckbox.addActionListener(e -> updateStrippedJson(fullJsonTextArea.getText()));
         // fetch button - fetch tweet JSON and update text areas
         fetchButton.addActionListener(e -> {
             final String txt = tweetIdText.getText();
             // Be nice, do this on a background thread
             new Thread(() -> {
                 try {
+                    errorState = false;
                     // allow the user to paste in a full status URL or just the ID
                     // e.g. "https://twitter.com/KathViner/status/919984305559961600" or "919984305559961600"
                     final String idStr = txt.contains("/") ? txt.substring(txt.lastIndexOf('/') + 1) : txt;
@@ -250,23 +257,49 @@ public class FetchTweetUI extends JPanel {
                     final long tweetID = Long.parseLong(idStr);
                     final Status tweet = twitter.showStatus(tweetID);
                     final String rawJSON = TwitterObjectFactory.getRawJSON(tweet);
-                    final Map<String, Object> fieldsToKeep = skipImagesCheckbox.isSelected() ? STRIPPED_STRUCTURE2 : STRIPPED_STRUCTURE1;
-                    final String strippedJSON = stripJSON(rawJSON, fieldsToKeep);
-                    SwingUtilities.invokeLater(() -> {
-                        fullJsonTextArea.setText(rawJSON);
-                        fullJsonTextArea.setCaretPosition(0); // scroll back to top
-                        strippedJsonTextArea.setText(strippedJSON);
-                        strippedJsonTextArea.setCaretPosition(0); // scroll back to top
-                    });
+                    updateTextArea(fullJsonTextArea, rawJSON);
+                    updateStrippedJson(rawJSON);
+                    pushToClipboard(rawJSON);
                 } catch (NumberFormatException nfe) {
                     String errMsg = "ERROR: \"" + txt + "\" is not a valid tweet ID or URL.";
                     SwingUtilities.invokeLater(() -> fullJsonTextArea.setText(errMsg));
+                    errorState = true;
                 } catch (TwitterException twerr) {
                     String errMsg = "ERROR: Failed to retrieve tweet:\n" + twerr.getErrorMessage();
                     SwingUtilities.invokeLater(() -> fullJsonTextArea.setText(errMsg));
                     twerr.printStackTrace();
+                    errorState = true;
                 }
             }).start();
+        });
+    }
+
+    /**
+     * Updates the stripped JSON area, taking into account whether images are wanted.
+     * Does nothing when the input is invalid. May be called from the Swing thread or
+     * off of it.
+     *
+     * @param rawJSON The raw JSON to consider.
+     */
+    private void updateStrippedJson(final String rawJSON) {
+        if (errorState || rawJSON == null || rawJSON.length() == 0) return;
+
+        final Map<String, Object> fieldsToKeep =
+            skipImagesCheckbox.isSelected() ? STRIPPED_STRUCTURE2 : STRIPPED_STRUCTURE1;
+        final String strippedJSON = stripJSON(rawJSON, fieldsToKeep);
+        updateTextArea(strippedJsonTextArea, strippedJSON);
+    }
+
+    /**
+     * Updates a {@link JTextArea} safely, from on or off the UI thread.
+     *
+     * @param textArea The text area to update.
+     * @param text The text to put into it.
+     */
+    private void updateTextArea(final JTextArea textArea, final String text) {
+        SwingUtilities.invokeLater(() -> {
+            textArea.setText(text);
+            textArea.setCaretPosition(0); // scroll back to top
         });
     }
 
