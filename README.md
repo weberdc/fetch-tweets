@@ -12,10 +12,11 @@ A tool to fetch tweets, with commandline and GUI modes.
 This app will look for tweet IDs on the commandline, or from a file specified on
 the commandline, or will launch a GUI into which can be pasted individual tweet IDs
 or URLs, which can then be fetched. In command line mode, the JSON for the retrieved
-tweets is sent to `stdout`. In GUI mode, the raw JSON is provided along with a
-version stripped of many of the fields to make it easier to avoid collecting sensitive
-information. Future versions may allow these fields to be configurable. The fields
-retained at the moment are:
+tweets is sent to `stdout`.
+ 
+In GUI mode, the raw JSON is provided along with a version stripped of many of the
+fields to make it easier to avoid collecting sensitive information. Future versions
+may allow these fields to be configurable. The fields retained at the moment are:
 
  + `created_at`
  + `text`
@@ -24,6 +25,7 @@ retained at the moment are:
  + `place`
  + `entities.media` (this can also be removed by using the provided checkbox)
  
+**NB** Field stripping is not provided in the commandline version.
 
 Twitter credentials are looked for in `"./twitter.properties"`, and proxy info
 is looked for in `"./proxy.properties"`. Commandline options for the input file,
