@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -186,7 +187,7 @@ class FetchTweets {
         final int callsRemaining = status.getRemaining();
         if (secondsUntilReset < 10 || callsRemaining < 10) {
             final int untilReset = status.getSecondsUntilReset() + 5;
-            System.out.println("Rate limit reached. Waiting ${untilReset} seconds starting at ${new Date()}...");
+            System.out.printf("Rate limit reached. Waiting %d seconds starting at %s...\n", untilReset, new Date());
             try {
                 Thread.sleep(untilReset * 1000);
             } catch (InterruptedException e) {
