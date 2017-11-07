@@ -27,6 +27,7 @@ import twitter4j.TwitterObjectFactory;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -59,18 +60,25 @@ import java.util.stream.IntStream;
  * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
  * the Tweet, and a valid JSON subset of the Tweet, either of which can be copied by
  * clicking in their text areas or using the copy buttons. Fields which are retained
- * in the subset are declared in {@link #FIELDS_TO_KEEP}.</p>
+ * in the subset are declared in {@link #FIELDS_TO_KEEP1}.</p>
  *
- * TODO Make {@link #FIELDS_TO_KEEP} configurable.
+ * TODO Make {@link #FIELDS_TO_KEEP1} configurable.
  */
 @SuppressWarnings("unchecked")
 public class FetchTweetUI extends JPanel {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final List<String> FIELDS_TO_KEEP = Arrays.asList(
+
+    private static final List<String> FIELDS_TO_KEEP1 = Arrays.asList(
         "created_at", "text", "user.screen_name", "coordinates", "place", "entities.media"
     );
-    private static final Map<String, Object> STRIPPED_STRUCTURE = buildFieldStructure(FIELDS_TO_KEEP);
+    // skips media, in case images are sensitive
+    private static final List<String> FIELDS_TO_KEEP2 = Arrays.asList(
+        "created_at", "text", "user.screen_name", "coordinates", "place"
+    );
+    private static final Map<String, Object> STRIPPED_STRUCTURE1 = buildFieldStructure(FIELDS_TO_KEEP1);
+    private static final Map<String, Object> STRIPPED_STRUCTURE2 = buildFieldStructure(FIELDS_TO_KEEP2);
+
     private static final Font JSON_FONT = new Font("Courier New", Font.PLAIN, 10);
     private static final String INDENT = "  ";
 
@@ -90,7 +98,7 @@ public class FetchTweetUI extends JPanel {
         final boolean debug
     ) {
         buildUI(twitter);
-        if (debug) System.out.println(str(STRIPPED_STRUCTURE, 0));
+        if (debug) System.out.println(str(STRIPPED_STRUCTURE1, 0));
     }
 
     /**
@@ -174,7 +182,6 @@ public class FetchTweetUI extends JPanel {
         gbc.insets = new Insets(0, 2, 0, 0);
         this.add(fetchButton, gbc);
 
-
         // Row 2: titled panel with scrollable JSON text area and copy button
         row = 2;
         fullJsonTextArea = new JTextArea();
@@ -192,8 +199,22 @@ public class FetchTweetUI extends JPanel {
         this.add(fullJsonPanel, gbc);
 
 
-        // Row 3: titled panel with scrollable JSON text area and copy button
+        // Row 3: skip-images checkbox
         row = 3;
+        final JCheckBox skipImagesCheckbox = new JCheckBox("Skip images?");
+        skipImagesCheckbox.setSelected(false);
+        skipImagesCheckbox.setToolTipText("Hit \"Fetch\" again if you change this.");
+
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = row - 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridwidth = 4;
+        this.add(skipImagesCheckbox, gbc);
+
+
+        // Row 4: titled panel with scrollable JSON text area and copy button
+        row = 4;
         strippedJsonTextArea = new JTextArea();
         final JPanel strippedJsonPanel =
             makeJsonPanel(" Stripped JSON (Click to copy) ", strippedJsonTextArea);
@@ -227,9 +248,10 @@ public class FetchTweetUI extends JPanel {
                     System.out.println("Retrieving tweet: " + idStr);
 
                     final long tweetID = Long.parseLong(idStr);
-                    Status tweet = twitter.showStatus(tweetID);
-                    String rawJSON = TwitterObjectFactory.getRawJSON(tweet);
-                    String strippedJSON = stripJSON(rawJSON);
+                    final Status tweet = twitter.showStatus(tweetID);
+                    final String rawJSON = TwitterObjectFactory.getRawJSON(tweet);
+                    final Map<String, Object> fieldsToKeep = skipImagesCheckbox.isSelected() ? STRIPPED_STRUCTURE2 : STRIPPED_STRUCTURE1;
+                    final String strippedJSON = stripJSON(rawJSON, fieldsToKeep);
                     SwingUtilities.invokeLater(() -> {
                         fullJsonTextArea.setText(rawJSON);
                         fullJsonTextArea.setCaretPosition(0); // scroll back to top
@@ -306,7 +328,7 @@ public class FetchTweetUI extends JPanel {
     private String makeExplanatoryTooltip() {
         StringBuilder sb = new StringBuilder("<html>");
         sb.append("JSON stripped of all fields except:<br>");
-        for (String f : FIELDS_TO_KEEP) {
+        for (String f : FIELDS_TO_KEEP1) {
             sb.append("- <code>").append(f).append("</code><br>");
         }
         return sb.append("</html>").toString();
@@ -331,13 +353,14 @@ public class FetchTweetUI extends JPanel {
      * Strips sensitive elements from the Tweet's raw JSON.
      *
      * @param tweetJSON The Tweet's raw JSON.
+     * @param fieldsToKeep Keep the fields in this nested map.
      * @return The desensitised JSON.
      */
-    private String stripJSON(final String tweetJSON) {
+    private String stripJSON(final String tweetJSON, Map<String, Object> fieldsToKeep) {
         try {
             JsonNode root = JSON.readValue(tweetJSON, JsonNode.class);
 
-            stripFields(root, STRIPPED_STRUCTURE);
+            stripFields(root, fieldsToKeep);
 
             return JSON.writeValueAsString(root);
 
