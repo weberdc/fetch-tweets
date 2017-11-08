@@ -19,7 +19,7 @@ fields to make it easier to avoid collecting sensitive information. Future versi
 may allow these fields to be configurable. The fields retained at the moment are:
 
  + `created_at`
- + `text` and `full_text`
+ + `text` and `full_text` and `extended_tweet.full_text`
  + `user.screen_name`
  + `coordinates`
  + `place`
