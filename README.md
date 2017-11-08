@@ -19,13 +19,23 @@ fields to make it easier to avoid collecting sensitive information. Future versi
 may allow these fields to be configurable. The fields retained at the moment are:
 
  + `created_at`
- + `text`
+ + `text` and `full_text`
  + `user.screen_name`
  + `coordinates`
  + `place`
  + `entities.media` (this can also be removed by using the provided checkbox)
  
 **NB** Field stripping is not provided in the commandline version.
+
+As of [2017-09-27](https://developer.twitter.com/en/docs/tweets/tweet-updates),
+Twitter is progressively rolling out 280 character tweets, referred to as 
+"extended tweets", and the "text" field is replaced by "full_text". In November
+2017, Twitter [announced](https://blog.twitter.com/official/en_us/topics/product/2017/tweetingmadeeasier.html)
+the 280 character limit would be extended (haha) to all Twitter users who needed
+it (some languages are more concise than others). I am using Twitter4J in
+_extended_ mode, but as a courtesy to those still running on standard mode, my
+'stripped' objects will have "full_text" copied to "text", if there is no content
+there already. The full raw JSON will be whatever Twitter supplies in 'extended' mode.
 
 The text area at the top (which holds the full JSON of a Tweet) has a "Paste from
 clipboard" button. With this, if the user copies the JSON for a tweet from 

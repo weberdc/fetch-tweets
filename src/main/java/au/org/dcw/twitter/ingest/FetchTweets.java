@@ -230,6 +230,7 @@ class FetchTweets {
         final Properties credentials = loadCredentials(credentialsFile);
 
         final ConfigurationBuilder conf = new ConfigurationBuilder();
+        conf.setTweetModeExtended(true);
         conf.setJSONStoreEnabled(true)
             .setDebugEnabled(debug)
             .setOAuthConsumerKey(credentials.getProperty("oauth.consumerKey"))

@@ -74,11 +74,12 @@ public class FetchTweetUI extends JPanel {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final List<String> FIELDS_TO_KEEP1 = Arrays.asList(
-        "created_at", "text", "user.screen_name", "coordinates", "place", "entities.media"
+        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
+        "entities.media"
     );
     // skips entities.media, in case images are sensitive
     private static final List<String> FIELDS_TO_KEEP2 = Arrays.asList(
-        "created_at", "text", "user.screen_name", "coordinates", "place"
+        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place"
     );
     private static final Map<String, Object> STRIPPED_STRUCTURE1 = buildFieldStructure(FIELDS_TO_KEEP1);
     private static final Map<String, Object> STRIPPED_STRUCTURE2 = buildFieldStructure(FIELDS_TO_KEEP2);
@@ -162,6 +163,9 @@ public class FetchTweetUI extends JPanel {
         tweetIdText = new JTextField();
         tweetIdText.setToolTipText("Paste or drag your tweet/status ID or URL here");
         tweetIdLabel.setLabelFor(tweetIdText);
+        tweetIdText.setDragEnabled(true);
+        // dragging text to the field _replaces_ the text, rather than inserting it where it's dropped
+        tweetIdText.setTransferHandler(new DropToReplaceTransferHandler());
 
         // example tweet
         tweetIdText.setText("https://twitter.com/ABCaustralia/status/927673379238313984");
@@ -290,7 +294,9 @@ public class FetchTweetUI extends JPanel {
                     errorState = false;
                     // allow the user to paste in a full status URL or just the ID
                     // e.g. "https://twitter.com/KathViner/status/919984305559961600" or "919984305559961600"
-                    final String idStr = txt.contains("/") ? txt.substring(txt.lastIndexOf('/') + 1) : txt;
+                    final String idStr = txt.contains("/")
+                        ? txt.substring(txt.lastIndexOf('/') + 1).trim()
+                        : txt.trim();
 
                     System.out.println("Retrieving tweet: " + idStr);
 
@@ -441,6 +447,16 @@ public class FetchTweetUI extends JPanel {
             JsonNode root = JSON.readValue(tweetJSON, JsonNode.class);
 
             stripFields(root, fieldsToKeep);
+
+            /* As of 2017-09-27, Twitter is progressively rolling out 280 character tweets,
+             * referred to as "extended tweets", and "text" is replaced by "full_text". I am
+             * using Twitter4J in extended mode, but as a courtesy to those still running on
+             * standard mode, my "stripped" objects will have "full_text" copied to "text", if
+             * there is no content there already.
+             */
+            if (! root.has("text")) {
+                ((ObjectNode) root).set("text", root.get("full_text").deepCopy());
+            }
 
             return JSON.writeValueAsString(root);
 
