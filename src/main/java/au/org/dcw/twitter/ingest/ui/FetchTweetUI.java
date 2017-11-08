@@ -29,6 +29,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -42,7 +43,9 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
@@ -83,6 +86,8 @@ public class FetchTweetUI extends JPanel {
     private static final Font JSON_FONT = new Font("Courier New", Font.PLAIN, 10);
     private static final String INDENT = "  ";
 
+    private final boolean debug;
+
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
     private JTextArea strippedJsonTextArea;
@@ -101,6 +106,7 @@ public class FetchTweetUI extends JPanel {
         final boolean debug
     ) {
         buildUI(twitter);
+        this.debug = debug;
         if (debug) System.out.println(str(STRIPPED_STRUCTURE1, 0));
     }
 
@@ -138,6 +144,7 @@ public class FetchTweetUI extends JPanel {
      * @param twitter The Twitter API instance, used by an event handler.
      */
     private void buildUI(final Twitter twitter) {
+
         // STRUCTURE
         setLayout(new GridBagLayout());
         setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
@@ -188,8 +195,20 @@ public class FetchTweetUI extends JPanel {
 
         // Row 2: titled panel with scrollable JSON text area and copy button
         row = 2;
-        fullJsonTextArea = new JTextArea();
-        final JPanel fullJsonPanel = makeJsonPanel(" Full JSON (Click to copy) ", fullJsonTextArea);
+        fullJsonTextArea = new JTextArea(); // Row 2.1
+        final JPanel fullJsonPanel = makeJsonPanel(" Full JSON (Click to copy text) ", fullJsonTextArea);
+
+        // Row 2.2: sneak in a paste-from-clipboard button within the group panel
+        /* NB I can't rely on selecting within the text area and hitting Ctrl-V, because
+         * when you click within the text area, you copy the text area to the global copy
+         * buffer, thus getting rid of what you're trying to paste in. Sigh.
+         */
+        final JButton pasteFromClipboardButton = new JButton("Paste from clipboard");
+
+        gbc = new GridBagConstraints();
+        gbc.gridy = 1; // fullJsonTextArea is gridy == 0
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        fullJsonPanel.add(pasteFromClipboardButton, gbc);
 
         // add full JSON titled panel to outer
         gbc = new GridBagConstraints();
@@ -221,7 +240,7 @@ public class FetchTweetUI extends JPanel {
         row = 4;
         strippedJsonTextArea = new JTextArea();
         final JPanel strippedJsonPanel =
-            makeJsonPanel(" Stripped JSON (Click to copy) ", strippedJsonTextArea);
+            makeJsonPanel(" Stripped JSON (Click to copy text) ", strippedJsonTextArea);
         strippedJsonPanel.setToolTipText(makeExplanatoryTooltip());
 
         // add stripped JSON titled panel to outer
@@ -241,6 +260,27 @@ public class FetchTweetUI extends JPanel {
         clearButton.addActionListener(e -> tweetIdText.setText(""));
         // update the stripped JSON anytime the checkbox is changed
         skipImagesCheckbox.addActionListener(e -> updateStrippedJson(fullJsonTextArea.getText()));
+        // paste from clipboard to the full json text area
+        pasteFromClipboardButton.addActionListener(e -> {
+            final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            try {
+                // grab the text from the clipboard, safely
+                final String hopefullyJSON = (String) clipboard.getData(DataFlavor.stringFlavor);
+                if (hopefullyJSON != null) {
+                    // update the text areas
+                    updateTextArea(fullJsonTextArea, hopefullyJSON);
+                    updateStrippedJson(hopefullyJSON);
+                }
+            } catch (UnsupportedFlavorException | IOException e1) {
+                e1.printStackTrace();
+                JOptionPane.showMessageDialog(
+                    fullJsonTextArea,
+                    "Failed to paste:\n" + e1.getMessage(),
+                    "Paste Error",
+                    JOptionPane.WARNING_MESSAGE
+                );
+            }
+        });
         // fetch button - fetch tweet JSON and update text areas
         fetchButton.addActionListener(e -> {
             final String txt = tweetIdText.getText();
@@ -257,9 +297,11 @@ public class FetchTweetUI extends JPanel {
                     final long tweetID = Long.parseLong(idStr);
                     final Status tweet = twitter.showStatus(tweetID);
                     final String rawJSON = TwitterObjectFactory.getRawJSON(tweet);
+
                     updateTextArea(fullJsonTextArea, rawJSON);
                     updateStrippedJson(rawJSON);
                     pushToClipboard(rawJSON);
+
                 } catch (NumberFormatException nfe) {
                     String errMsg = "ERROR: \"" + txt + "\" is not a valid tweet ID or URL.";
                     SwingUtilities.invokeLater(() -> fullJsonTextArea.setText(errMsg));
@@ -286,7 +328,9 @@ public class FetchTweetUI extends JPanel {
 
         final Map<String, Object> fieldsToKeep =
             skipImagesCheckbox.isSelected() ? STRIPPED_STRUCTURE2 : STRIPPED_STRUCTURE1;
+
         final String strippedJSON = stripJSON(rawJSON, fieldsToKeep);
+
         updateTextArea(strippedJsonTextArea, strippedJSON);
     }
 
@@ -323,7 +367,7 @@ public class FetchTweetUI extends JPanel {
         jsonTextArea.setEditable(false);
         jsonTextArea.setLineWrap(true);
         jsonTextArea.setWrapStyleWord(true);
-        jsonTextArea.setToolTipText("Click to copy");
+        jsonTextArea.setToolTipText("Click the text to copy it");
 
         final JScrollPane strippedJsonScrollPane = new JScrollPane(jsonTextArea);
         strippedJsonScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
@@ -343,6 +387,7 @@ public class FetchTweetUI extends JPanel {
                 jsonTextArea.setSelectionStart(0);
                 final String text = jsonTextArea.getText();
                 jsonTextArea.setSelectionEnd(text.length());
+                if (debug) System.out.println("Pushing '" + text + "' to the clipboard");
                 pushToClipboard(text);
             }
         };
@@ -360,10 +405,12 @@ public class FetchTweetUI extends JPanel {
      */
     private String makeExplanatoryTooltip() {
         StringBuilder sb = new StringBuilder("<html>");
-        sb.append("JSON stripped of all fields except:<br>");
-        for (String f : FIELDS_TO_KEEP1) {
-            sb.append("- <code>").append(f).append("</code><br>");
-        }
+        sb.append("The JSON is filtered for only these fields:<br>");
+        FIELDS_TO_KEEP1.stream()
+            .sorted()
+            .map(f -> "- <code>" + f + "</code><br>")
+            .forEach(sb::append);
+        sb.append("<strong>NB</strong> <code>entities.media</code> is not included if images are skipped.<br>");
         return sb.append("</html>").toString();
     }
 
@@ -427,7 +474,7 @@ public class FetchTweetUI extends JPanel {
 
         for (String field: toKeep.keySet()) {
             Map<String, Object> value = (Map<String, Object>) toKeep.get(field);
-            if (value != null) {//! value.isEmpty()) {
+            if (value != null && root.has(field)) {
                 stripFields(root.get(field), value);
             }
         }
@@ -458,7 +505,7 @@ public class FetchTweetUI extends JPanel {
             sb.append(leadingSpaces(indentLevel)).append("- ").append(k).append("\n");
 
             Map mapValue = (Map) v;
-            if (v != null) {// && ! mapValue.isEmpty()) {
+            if (v != null) {
                 sb.append(str(mapValue, indentLevel + 1));
             }
         });

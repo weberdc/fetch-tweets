@@ -27,6 +27,14 @@ may allow these fields to be configurable. The fields retained at the moment are
  
 **NB** Field stripping is not provided in the commandline version.
 
+The text area at the top (which holds the full JSON of a Tweet) has a "Paste from
+clipboard" button. With this, if the user copies the JSON for a tweet from 
+somewhere else (e.g. a previous collection), the app will paste it into the top
+text area, and the lower text area will contained an appropriately filtered version 
+of the top one. Clicking in the text area and using Ctrl-V would not work, because
+as soon as the user clicks in the area, the text will be pushed to the clipboard -
+a feature for extracting the JSON quickly.
+
 Twitter credentials are looked for in `"./twitter.properties"`, and proxy info
 is looked for in `"./proxy.properties"`. Commandline options for the input file,
 the output file, and the Twitter properties are provided, along with a verbose
