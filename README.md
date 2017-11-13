@@ -18,6 +18,7 @@ In GUI mode, the raw JSON is provided along with a version stripped of many of t
 fields to make it easier to avoid collecting sensitive information. Future versions
 may allow these fields to be configurable. The fields retained at the moment are:
 
+ + `id` and `id_str`
  + `created_at`
  + `text` and `full_text` and `extended_tweet.full_text`
  + `user.screen_name`

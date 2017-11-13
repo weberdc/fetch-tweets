@@ -75,11 +75,12 @@ public class FetchTweetUI extends JPanel {
 
     private static final List<String> FIELDS_TO_KEEP1 = Arrays.asList(
         "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
-        "entities.media"
+        "entities.media", "id", "id_str"
     );
     // skips entities.media, in case images are sensitive
     private static final List<String> FIELDS_TO_KEEP2 = Arrays.asList(
-        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place"
+        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
+        "id", "id_str"
     );
     private static final Map<String, Object> STRIPPED_STRUCTURE1 = buildFieldStructure(FIELDS_TO_KEEP1);
     private static final Map<String, Object> STRIPPED_STRUCTURE2 = buildFieldStructure(FIELDS_TO_KEEP2);
@@ -406,7 +407,7 @@ public class FetchTweetUI extends JPanel {
     /**
      * Creates a String to use as a tooltip to explain which fields are retained
      * in the stripped version of the JSON.
-     * 
+     *
      * @return An explanatory tooltip.
      */
     private String makeExplanatoryTooltip() {
@@ -422,7 +423,7 @@ public class FetchTweetUI extends JPanel {
 
     /**
      * Creates a {@link JPanel} with a titled border and a {@link GridBagLayout}.
-     * 
+     *
      * @param title The title to use for the panel's border.
      * @return A panel with a titled border.
      */
