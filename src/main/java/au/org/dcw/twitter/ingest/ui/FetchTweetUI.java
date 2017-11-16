@@ -368,7 +368,9 @@ public class FetchTweetUI extends JPanel {
     private void updateStrippedJson(final String rawJSON) {
         if (errorState || rawJSON == null || rawJSON.length() == 0) return;
 
-        final List<String> fieldsToKeep = Stream.of(ftkTextArea.getText().split(","))
+        final List<String> fieldsToKeep = Stream.of(ftkTextArea.getText().split("\n"))
+            .map(l -> l.contains(",") ? Stream.of(l.split(",")) : Stream.of(l))
+            .flatMap(x -> x)
             .map(String::trim)
             .collect(Collectors.toList());
 
