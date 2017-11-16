@@ -17,9 +17,9 @@ tweets is sent to `stdout`.
 In GUI mode, the raw JSON is provided along with a version stripped of many of the
 fields to make it easier to avoid collecting sensitive information. The fields can be
 specified with the `-k` or `--keep-file` commandline option. An example input file
-can be found in `data/test/properties-to-keep.txt`. Properties are comma-separated if
-they're on the same line or can be specified one per line. If fields are not specified
-this way, the ones retained by default are:
+can be found in `data/test/properties-to-keep.txt`. Properties are comma- or 
+space-separated if they're on the same line or can be specified one per line. If 
+fields are not specified this way, the ones retained by default are:
 
  + `id` and `id_str`
  + `created_at`
@@ -29,6 +29,9 @@ this way, the ones retained by default are:
  + `place`
  + `entities.media` (this can also be removed by using the provided checkbox)
  
+There is an editable text field to tweak the properties to keep in the UI also,
+which will dynamically update the stripped JSON field.
+
 **NB** Field stripping is not provided in the commandline version.
 
 As of [2017-09-27](https://developer.twitter.com/en/docs/tweets/tweet-updates),

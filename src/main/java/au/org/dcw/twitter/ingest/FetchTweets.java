@@ -204,7 +204,7 @@ class FetchTweets {
         } else {
             return Files.readAllLines(Paths.get(propertiesToKeepFile)).stream()
                 .map(l -> l.contains("#") ? l.split("#")[0] : l) // strip comments
-                .map(l -> l.contains(",")? Stream.of(l.split(",")) : Stream.of(l)) // break up multiple properties
+                .map(l -> l.contains(",") || l.contains(" ") ? Stream.of(l.split("[, ]")) : Stream.of(l)) // break up multiple properties
                 .flatMap(x -> x) // typecast them back to Strings (I never understood this magic)
                 .map(String::trim) // remove surrounding whitespace
                 .filter(s -> s.length() > 0) // ditch empty lines

@@ -79,8 +79,6 @@ public class FetchTweetUI extends JPanel {
 
     private final boolean debug;
     private boolean errorState;
-//    private final List<String> fieldsToKeep;
-//    private final List<String> fieldsToKeepNoMedia;
 
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
@@ -100,8 +98,6 @@ public class FetchTweetUI extends JPanel {
         final List<String> fieldsToKeep,
         final boolean debug
     ) {
-//        this.fieldsToKeep = fieldsToKeep;
-//        this.fieldsToKeepNoMedia = Lists.newArrayList(fieldsToKeep);
         this.debug = debug;
         if (debug) System.out.println(str(buildFieldStructure(fieldsToKeep), 0));
         buildUI(twitter, fieldsToKeep);
@@ -139,6 +135,7 @@ public class FetchTweetUI extends JPanel {
      * Builds the UI.
      *
      * @param twitter The Twitter API instance, used by an event handler.
+     * @param fieldsToKeep The initial list of fields to keep in the stripped JSON.
      */
     private void buildUI(final Twitter twitter, final List<String> fieldsToKeep) {
 
@@ -359,9 +356,10 @@ public class FetchTweetUI extends JPanel {
     }
 
     /**
-     * Updates the stripped JSON area, taking into account whether images are wanted.
-     * Does nothing when the input is invalid. May be called from the Swing thread or
-     * off of it.
+     * Updates the stripped JSON area, taking into account whether images are wanted
+     * and using the fields specified in {@link #ftkTextArea} to decide which fields
+     * to keep. Does nothing when the input is invalid. May be called from the Swing
+     * thread or off of it.
      *
      * @param rawJSON The raw JSON to consider.
      */
@@ -369,7 +367,7 @@ public class FetchTweetUI extends JPanel {
         if (errorState || rawJSON == null || rawJSON.length() == 0) return;
 
         final List<String> fieldsToKeep = Stream.of(ftkTextArea.getText().split("\n"))
-            .map(l -> l.contains(",") ? Stream.of(l.split(",")) : Stream.of(l))
+            .map(l -> l.contains(",") ? Stream.of(l.split("[, ]")) : Stream.of(l))
             .flatMap(x -> x)
             .map(String::trim)
             .collect(Collectors.toList());

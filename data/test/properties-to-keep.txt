@@ -1,8 +1,8 @@
-# example file of properties to keep
+# example file of properties to keep, separate properties by comma, space or line
 created_at # a timestamp
 text, full_text, extended_tweet.full_text
 user.screen_name
-coordinates, place
+coordinates place
 entities.media
-id, id_str
+id id_str
 
