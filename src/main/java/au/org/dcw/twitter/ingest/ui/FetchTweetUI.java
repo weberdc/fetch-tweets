@@ -62,38 +62,26 @@ import java.util.stream.IntStream;
  * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
  * the Tweet, and a valid JSON subset of the Tweet, either of which can be copied by
  * clicking in their text areas or using the copy buttons. Fields which are retained
- * in the subset are declared in {@link #fieldsToKeep} and {@link #FIELDS_TO_KEEP2}
+ * in the subset are declared in {@link #fieldsToKeep} and {@link #fieldsToKeepNoMedia}
  * (the latter ignores the Tweet's <code>entities.media</code> field).</p>
- *
- * TODO Make {@link #fieldsToKeep} configurable.
  */
 @SuppressWarnings("unchecked")
 public class FetchTweetUI extends JPanel {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private final List<String> fieldsToKeep;
-//    = Arrays.asList(
-//        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
-//        "entities.media", "id", "id_str"
-//    );
-    // skips entities.media, in case images are sensitive
-    private final List<String> fieldsToKeepNoMedia;
-//    = Arrays.asList(
-//        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
-//        "id", "id_str"
-//    );
-
-    private static final Font JSON_FONT = new Font("Courier New", Font.PLAIN, 10);
+    private static final Font TEXT_FONT = new Font("Courier New", Font.PLAIN, 10);
     private static final String INDENT = "  ";
 
     private final boolean debug;
+    private boolean errorState;
+    private final List<String> fieldsToKeep;
+    private final List<String> fieldsToKeepNoMedia;
 
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
     private JTextArea strippedJsonTextArea;
     private JCheckBox skipMediaCheckbox;
-    private boolean errorState;
 
 
     /**
@@ -204,7 +192,7 @@ public class FetchTweetUI extends JPanel {
 
 
         // Row 2: titled panel with scrollable JSON text area and copy button
-        row = 2;
+        row++;
         fullJsonTextArea = new JTextArea(); // Row 2.1
         final JPanel fullJsonPanel = makeJsonPanel(" Full JSON (Click to copy text) ", fullJsonTextArea);
 
@@ -233,7 +221,7 @@ public class FetchTweetUI extends JPanel {
 
 
         // Row 3: skip-media checkbox
-        row = 3;
+        row++;
         skipMediaCheckbox = new JCheckBox("Skip images & videos?");
         skipMediaCheckbox.setSelected(false);
         skipMediaCheckbox.setToolTipText("Select this to remove the Tweet's media field");
@@ -247,11 +235,45 @@ public class FetchTweetUI extends JPanel {
 
 
         // Row 4: titled panel with scrollable JSON text area and copy button
-        row = 4;
+        row++;
         strippedJsonTextArea = new JTextArea();
         final JPanel strippedJsonPanel =
             makeJsonPanel(" Stripped JSON (Click to copy text) ", strippedJsonTextArea);
         strippedJsonPanel.setToolTipText(makeExplanatoryTooltip());
+
+        // add the fields to keep label
+        final JLabel ftkLabel = new JLabel("Fields to keep:");
+
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridwidth = 1;
+        strippedJsonPanel.add(ftkLabel, gbc);
+
+        // add the fields to keep text area
+        final JTextArea ftkTextArea = new JTextArea(
+            fieldsToKeep.stream().collect(Collectors.joining(", "))
+        );
+        ftkTextArea.setFont(TEXT_FONT.deriveFont(TEXT_FONT.getSize() + 2.0f));
+        ftkTextArea.setLineWrap(true);
+        ftkTextArea.setWrapStyleWord(true);
+
+        final JScrollPane ftkScrollPane = new JScrollPane(
+            ftkTextArea,
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
+        );
+
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weighty = 0.3; // use a bit of space but let the stripped JSON have most of it
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.gridwidth = 1;
+        strippedJsonPanel.add(ftkScrollPane, gbc);
+
+
 
         // add stripped JSON titled panel to outer
         gbc = new GridBagConstraints();
@@ -375,7 +397,7 @@ public class FetchTweetUI extends JPanel {
         JPanel panel = makeTitledPanel(title);
 
         // configure the text area and make it scrollable
-        jsonTextArea.setFont(JSON_FONT);
+        jsonTextArea.setFont(TEXT_FONT);
         jsonTextArea.setEditable(false);
         jsonTextArea.setLineWrap(true);
         jsonTextArea.setWrapStyleWord(true);
