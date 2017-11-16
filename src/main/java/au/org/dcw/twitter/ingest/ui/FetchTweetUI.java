@@ -46,6 +46,9 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
@@ -57,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
@@ -75,13 +79,14 @@ public class FetchTweetUI extends JPanel {
 
     private final boolean debug;
     private boolean errorState;
-    private final List<String> fieldsToKeep;
-    private final List<String> fieldsToKeepNoMedia;
+//    private final List<String> fieldsToKeep;
+//    private final List<String> fieldsToKeepNoMedia;
 
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
     private JTextArea strippedJsonTextArea;
     private JCheckBox skipMediaCheckbox;
+    private JTextArea ftkTextArea;
 
 
     /**
@@ -95,14 +100,11 @@ public class FetchTweetUI extends JPanel {
         final List<String> fieldsToKeep,
         final boolean debug
     ) {
-        this.fieldsToKeep = fieldsToKeep;
-        this.fieldsToKeepNoMedia = Lists.newArrayList(fieldsToKeep);
-        if (! fieldsToKeepNoMedia.remove("entities.media")) { // media-safe list
-            System.err.println("\"entities.media\" wasn't required - skip images checkbox will have no effect.");
-        }
+//        this.fieldsToKeep = fieldsToKeep;
+//        this.fieldsToKeepNoMedia = Lists.newArrayList(fieldsToKeep);
         this.debug = debug;
-        if (debug) System.out.println(str(buildFieldStructure(this.fieldsToKeep), 0));
-        buildUI(twitter);
+        if (debug) System.out.println(str(buildFieldStructure(fieldsToKeep), 0));
+        buildUI(twitter, fieldsToKeep);
     }
 
     /**
@@ -138,7 +140,7 @@ public class FetchTweetUI extends JPanel {
      *
      * @param twitter The Twitter API instance, used by an event handler.
      */
-    private void buildUI(final Twitter twitter) {
+    private void buildUI(final Twitter twitter, final List<String> fieldsToKeep) {
 
         // STRUCTURE
         setLayout(new GridBagLayout());
@@ -252,7 +254,7 @@ public class FetchTweetUI extends JPanel {
         strippedJsonPanel.add(ftkLabel, gbc);
 
         // add the fields to keep text area
-        final JTextArea ftkTextArea = new JTextArea(
+        ftkTextArea = new JTextArea(
             fieldsToKeep.stream().collect(Collectors.joining(", "))
         );
         ftkTextArea.setFont(TEXT_FONT.deriveFont(TEXT_FONT.getSize() + 2.0f));
@@ -272,7 +274,6 @@ public class FetchTweetUI extends JPanel {
         gbc.fill = GridBagConstraints.BOTH;
         gbc.gridwidth = 1;
         strippedJsonPanel.add(ftkScrollPane, gbc);
-
 
 
         // add stripped JSON titled panel to outer
@@ -348,6 +349,13 @@ public class FetchTweetUI extends JPanel {
                 }
             }).start();
         });
+        // fields to keep text area, commit as you type
+        ftkTextArea.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                updateStrippedJson(fullJsonTextArea.getText());
+            }
+        });
     }
 
     /**
@@ -360,8 +368,15 @@ public class FetchTweetUI extends JPanel {
     private void updateStrippedJson(final String rawJSON) {
         if (errorState || rawJSON == null || rawJSON.length() == 0) return;
 
+        final List<String> fieldsToKeep = Stream.of(ftkTextArea.getText().split(","))
+            .map(String::trim)
+            .collect(Collectors.toList());
+
+        final List<String> fieldsToKeepNoMedia = Lists.newArrayList(fieldsToKeep);
+        fieldsToKeepNoMedia.remove("entities.media"); // media-safe list
+
         final Map<String, Object> toKeep =
-            buildFieldStructure(skipMediaCheckbox.isSelected() ? fieldsToKeepNoMedia : this.fieldsToKeep);
+            buildFieldStructure(skipMediaCheckbox.isSelected() ? fieldsToKeepNoMedia : fieldsToKeep);
 
         final String strippedJSON = stripJSON(rawJSON, toKeep);
 
@@ -439,11 +454,7 @@ public class FetchTweetUI extends JPanel {
      */
     private String makeExplanatoryTooltip() {
         StringBuilder sb = new StringBuilder("<html>");
-        sb.append("The JSON is filtered for only these fields:<br>");
-        fieldsToKeep.stream()
-            .sorted()
-            .map(f -> "- <code>" + f + "</code><br>")
-            .forEach(sb::append);
+        sb.append("The JSON is filtered for only the fields below.<br>");
         sb.append("<strong>NB</strong> <code>entities.media</code> is not included if images are skipped.<br>");
         return sb.append("</html>").toString();
     }
