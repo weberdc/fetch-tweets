@@ -41,10 +41,12 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -68,6 +70,10 @@ class FetchTweets {
      * @see Twitter's <a href="https://developer.twitter.com/en/docs/tweets/post-and-engage/api-reference/get-statuses-lookup">GET statuses/lookup</a>
      */
     private static final int REFETCH_BATCH_SIZE = 100;
+    public static final List<String> DEFAULT_FIELDS_TO_KEEP = Arrays.asList(
+        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
+        "entities.media", "id", "id_str"
+    );
 
     @Parameter(names = {"-i", "--id", "--ids"}, description = "ID of tweet(s) to fetch")
     private List<String> idStrs = Lists.newArrayList();
@@ -75,8 +81,8 @@ class FetchTweets {
     @Parameter(names = {"-f", "--ids-file"}, description = "File of tweet IDs to fetch (one per line)")
     private String infile;
 
-    @Parameter(names = {"-k", "--keep-file"}, description = "File of tweet IDs to fetch (one per line)")
-    private String propertyToKeepFile;
+    @Parameter(names = {"-k", "--keep-file"}, description = "File of properties to keep (comma separated or one per line)")
+    private String propertiesToKeepFile;
 
     @Parameter(names = {"-c", "--credentials"},
                description = "Properties file with Twitter OAuth credentials")
@@ -134,10 +140,7 @@ class FetchTweets {
             JFrame frame = new JFrame("Fetch Tweet");
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-            final List<String> fieldsToKeep = Arrays.asList(
-                "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
-                "entities.media", "id", "id_str"
-            );
+            final List<String> fieldsToKeep = loadFieldsToKeep();
             JComponent gui = new FetchTweetUI(twitter, fieldsToKeep, debug);
             frame.setContentPane(gui);
 
@@ -193,6 +196,20 @@ class FetchTweets {
                     maybeDoze(response.getRateLimitStatus());
                 }
             });
+        }
+    }
+
+    private List<String> loadFieldsToKeep() throws IOException {
+        if (propertiesToKeepFile == null) {
+            return DEFAULT_FIELDS_TO_KEEP;
+        } else {
+            return Files.readAllLines(Paths.get(propertiesToKeepFile)).stream()
+                .map(l ->
+                    l.indexOf(',') != -1 ? Stream.of(l.split(",")) : Stream.of(l)
+                ).flatMap(x -> x)
+                .map(String::trim)
+                .filter(s -> s.length() > 0)
+                .collect(Collectors.toList());
         }
     }
 

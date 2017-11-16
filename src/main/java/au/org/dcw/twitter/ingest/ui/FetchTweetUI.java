@@ -460,7 +460,7 @@ public class FetchTweetUI extends JPanel {
              * standard mode, my "stripped" objects will have "full_text" copied to "text", if
              * there is no content there already.
              */
-            if (! root.has("text")) {
+            if (! root.has("text") && root.has("full_text")) {
                 ((ObjectNode) root).set("text", root.get("full_text").deepCopy());
             }
 
