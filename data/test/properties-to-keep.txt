@@ -1,0 +1,7 @@
+created_at
+text, full_text, extended_tweet.full_text
+user.screen_name
+coordinates, place
+entities.media
+id, id_str
+
