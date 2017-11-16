@@ -18,6 +18,7 @@ package au.org.dcw.twitter.ingest;
 import au.org.dcw.twitter.ingest.ui.FetchTweetUI;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.google.common.collect.Lists;
 import twitter4j.RateLimitStatus;
 import twitter4j.RateLimitStatusEvent;
@@ -39,6 +40,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -73,6 +75,9 @@ class FetchTweets {
     @Parameter(names = {"-f", "--ids-file"}, description = "File of tweet IDs to fetch (one per line)")
     private String infile;
 
+    @Parameter(names = {"-k", "--keep-file"}, description = "File of tweet IDs to fetch (one per line)")
+    private String propertyToKeepFile;
+
     @Parameter(names = {"-c", "--credentials"},
                description = "Properties file with Twitter OAuth credentials")
     private String credentialsFile = "./twitter.properties";
@@ -91,7 +96,11 @@ class FetchTweets {
             .addObject(theApp)
             .programName("bin/fetch-tweets[.bat]")
             .build();
-        argsParser.parse(args);
+        try {
+            argsParser.parse(args);
+        } catch (ParameterException e) {
+            help = true;
+        }
 
         if (help) {
             StringBuilder sb = new StringBuilder();
@@ -125,7 +134,11 @@ class FetchTweets {
             JFrame frame = new JFrame("Fetch Tweet");
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-            JComponent gui = new FetchTweetUI(twitter, debug);
+            final List<String> fieldsToKeep = Arrays.asList(
+                "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
+                "entities.media", "id", "id_str"
+            );
+            JComponent gui = new FetchTweetUI(twitter, fieldsToKeep, debug);
             frame.setContentPane(gui);
 
             // Display the window

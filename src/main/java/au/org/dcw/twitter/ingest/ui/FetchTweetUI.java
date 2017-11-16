@@ -51,7 +51,6 @@ import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -63,27 +62,27 @@ import java.util.stream.IntStream;
  * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
  * the Tweet, and a valid JSON subset of the Tweet, either of which can be copied by
  * clicking in their text areas or using the copy buttons. Fields which are retained
- * in the subset are declared in {@link #FIELDS_TO_KEEP1} and {@link #FIELDS_TO_KEEP2}
+ * in the subset are declared in {@link #fieldsToKeep} and {@link #FIELDS_TO_KEEP2}
  * (the latter ignores the Tweet's <code>entities.media</code> field).</p>
  *
- * TODO Make {@link #FIELDS_TO_KEEP1} configurable.
+ * TODO Make {@link #fieldsToKeep} configurable.
  */
 @SuppressWarnings("unchecked")
 public class FetchTweetUI extends JPanel {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private static final List<String> FIELDS_TO_KEEP1 = Arrays.asList(
-        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
-        "entities.media", "id", "id_str"
-    );
+    private final List<String> fieldsToKeep;
+//    = Arrays.asList(
+//        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
+//        "entities.media", "id", "id_str"
+//    );
     // skips entities.media, in case images are sensitive
-    private static final List<String> FIELDS_TO_KEEP2 = Arrays.asList(
-        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
-        "id", "id_str"
-    );
-    private static final Map<String, Object> STRIPPED_STRUCTURE1 = buildFieldStructure(FIELDS_TO_KEEP1);
-    private static final Map<String, Object> STRIPPED_STRUCTURE2 = buildFieldStructure(FIELDS_TO_KEEP2);
+    private final List<String> fieldsToKeepNoMedia;
+//    = Arrays.asList(
+//        "created_at", "text", "full_text", "extended_tweet.full_text", "user.screen_name", "coordinates", "place",
+//        "id", "id_str"
+//    );
 
     private static final Font JSON_FONT = new Font("Courier New", Font.PLAIN, 10);
     private static final String INDENT = "  ";
@@ -93,7 +92,7 @@ public class FetchTweetUI extends JPanel {
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
     private JTextArea strippedJsonTextArea;
-    private JCheckBox skipImagesCheckbox;
+    private JCheckBox skipMediaCheckbox;
     private boolean errorState;
 
 
@@ -105,11 +104,17 @@ public class FetchTweetUI extends JPanel {
      */
     public FetchTweetUI(
         final Twitter twitter,
+        final List<String> fieldsToKeep,
         final boolean debug
     ) {
-        buildUI(twitter);
+        this.fieldsToKeep = fieldsToKeep;
+        this.fieldsToKeepNoMedia = Lists.newArrayList(fieldsToKeep);
+        if (! fieldsToKeepNoMedia.remove("entities.media")) { // media-safe list
+            System.err.println("\"entities.media\" wasn't required - skip images checkbox will have no effect.");
+        }
         this.debug = debug;
-        if (debug) System.out.println(str(STRIPPED_STRUCTURE1, 0));
+        if (debug) System.out.println(str(buildFieldStructure(this.fieldsToKeep), 0));
+        buildUI(twitter);
     }
 
     /**
@@ -227,18 +232,18 @@ public class FetchTweetUI extends JPanel {
         this.add(fullJsonPanel, gbc);
 
 
-        // Row 3: skip-images checkbox
+        // Row 3: skip-media checkbox
         row = 3;
-        skipImagesCheckbox = new JCheckBox("Skip images?");
-        skipImagesCheckbox.setSelected(false);
-        skipImagesCheckbox.setToolTipText("Select this to remove the Tweet's media field");
+        skipMediaCheckbox = new JCheckBox("Skip images & videos?");
+        skipMediaCheckbox.setSelected(false);
+        skipMediaCheckbox.setToolTipText("Select this to remove the Tweet's media field");
 
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = row - 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridwidth = 4;
-        this.add(skipImagesCheckbox, gbc);
+        this.add(skipMediaCheckbox, gbc);
 
 
         // Row 4: titled panel with scrollable JSON text area and copy button
@@ -264,7 +269,7 @@ public class FetchTweetUI extends JPanel {
         // clear the text field
         clearButton.addActionListener(e -> tweetIdText.setText(""));
         // update the stripped JSON anytime the checkbox is changed
-        skipImagesCheckbox.addActionListener(e -> updateStrippedJson(fullJsonTextArea.getText()));
+        skipMediaCheckbox.addActionListener(e -> updateStrippedJson(fullJsonTextArea.getText()));
         // paste from clipboard to the full json text area
         pasteFromClipboardButton.addActionListener(e -> {
             final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -333,10 +338,10 @@ public class FetchTweetUI extends JPanel {
     private void updateStrippedJson(final String rawJSON) {
         if (errorState || rawJSON == null || rawJSON.length() == 0) return;
 
-        final Map<String, Object> fieldsToKeep =
-            skipImagesCheckbox.isSelected() ? STRIPPED_STRUCTURE2 : STRIPPED_STRUCTURE1;
+        final Map<String, Object> toKeep =
+            buildFieldStructure(skipMediaCheckbox.isSelected() ? fieldsToKeepNoMedia : this.fieldsToKeep);
 
-        final String strippedJSON = stripJSON(rawJSON, fieldsToKeep);
+        final String strippedJSON = stripJSON(rawJSON, toKeep);
 
         updateTextArea(strippedJsonTextArea, strippedJSON);
     }
@@ -413,7 +418,7 @@ public class FetchTweetUI extends JPanel {
     private String makeExplanatoryTooltip() {
         StringBuilder sb = new StringBuilder("<html>");
         sb.append("The JSON is filtered for only these fields:<br>");
-        FIELDS_TO_KEEP1.stream()
+        fieldsToKeep.stream()
             .sorted()
             .map(f -> "- <code>" + f + "</code><br>")
             .forEach(sb::append);
