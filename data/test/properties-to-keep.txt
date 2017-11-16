@@ -1,4 +1,5 @@
-created_at
+# example file of properties to keep
+created_at # a timestamp
 text, full_text, extended_tweet.full_text
 user.screen_name
 coordinates, place
