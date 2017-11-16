@@ -140,8 +140,7 @@ class FetchTweets {
             JFrame frame = new JFrame("Fetch Tweet");
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-            final List<String> fieldsToKeep = loadFieldsToKeep();
-            JComponent gui = new FetchTweetUI(twitter, fieldsToKeep, debug);
+            JComponent gui = new FetchTweetUI(twitter, loadFieldsToKeep(), debug);
             frame.setContentPane(gui);
 
             // Display the window
