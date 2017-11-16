@@ -15,8 +15,11 @@ or URLs, which can then be fetched. In command line mode, the JSON for the retri
 tweets is sent to `stdout`.
  
 In GUI mode, the raw JSON is provided along with a version stripped of many of the
-fields to make it easier to avoid collecting sensitive information. Future versions
-may allow these fields to be configurable. The fields retained at the moment are:
+fields to make it easier to avoid collecting sensitive information. The fields can be
+specified with the `-k` or `--keep-file` commandline option. An example input file
+can be found in `data/test/properties-to-keep.txt`. Properties are comma-separated if
+they're on the same line or can be specified one per line. If fields are not specified
+this way, the ones retained by default are:
 
  + `id` and `id_str`
  + `created_at`
@@ -120,6 +123,8 @@ Usage: bin/fetch-tweets[.bat] [options]
       Default: []
     -f, --ids-file
       File of tweet IDs to fetch (one per line)
+    -k, --keep-file
+      File of properties to keep (comma separated or one per line)
     -v, --debug, --verbose
       Debug mode
       Default: false
