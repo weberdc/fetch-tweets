@@ -25,7 +25,9 @@ import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.TwitterObjectFactory;
 
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
+import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
@@ -34,8 +36,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.text.DefaultEditorKit;
+import javax.swing.text.JTextComponent;
+import javax.swing.text.TextAction;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -46,11 +52,13 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -66,8 +74,7 @@ import java.util.stream.Stream;
  * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
  * the Tweet, and a valid JSON subset of the Tweet, either of which can be copied by
  * clicking in their text areas or using the copy buttons. Fields which are retained
- * in the subset are declared in {@link #fieldsToKeep} and {@link #fieldsToKeepNoMedia}
- * (the latter ignores the Tweet's <code>entities.media</code> field).</p>
+ * in the subset are passed in via the constructor and can be edited in the UI.</p>
  */
 @SuppressWarnings("unchecked")
 public class FetchTweetUI extends JPanel {
@@ -82,7 +89,7 @@ public class FetchTweetUI extends JPanel {
 
     private JTextField tweetIdText;
     private JTextArea fullJsonTextArea;
-    private JTextArea strippedJsonTextArea;
+    private JTextArea sanitisedJsonTextArea;
     private JCheckBox skipMediaCheckbox;
     private JTextArea ftkTextArea;
 
@@ -193,7 +200,24 @@ public class FetchTweetUI extends JPanel {
         // Row 2: titled panel with scrollable JSON text area and copy button
         row++;
         fullJsonTextArea = new JTextArea(); // Row 2.1
-        final JPanel fullJsonPanel = makeJsonPanel(" Full JSON (Click to copy text) ", fullJsonTextArea);
+        // STRUCTURE
+        final JPanel fullJsonPanel = makeTitledPanel(" Full JSON ");
+
+        // configure the text area and make it scrollable
+        fullJsonTextArea.setFont(TEXT_FONT);
+        fullJsonTextArea.setEditable(true);
+        fullJsonTextArea.setLineWrap(true);
+        fullJsonTextArea.setWrapStyleWord(true);
+
+        final JScrollPane jsonScrollPane1 = new JScrollPane(fullJsonTextArea);
+        jsonScrollPane1.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        jsonScrollPane1.setPreferredSize(new Dimension(250, 250));
+
+        gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        fullJsonPanel.add(jsonScrollPane1, gbc);
 
         // Row 2.2: sneak in a paste-from-clipboard button within the group panel
         /* NB I can't rely on selecting within the text area and hitting Ctrl-V, because
@@ -235,10 +259,32 @@ public class FetchTweetUI extends JPanel {
 
         // Row 4: titled panel with scrollable JSON text area and copy button
         row++;
-        strippedJsonTextArea = new JTextArea();
-        final JPanel strippedJsonPanel =
-            makeJsonPanel(" Stripped JSON (Click to copy text) ", strippedJsonTextArea);
-        strippedJsonPanel.setToolTipText(makeExplanatoryTooltip());
+        sanitisedJsonTextArea = new JTextArea();
+        // STRUCTURE
+        final JPanel sanitisedJsonPanel = makeTitledPanel(
+            "<html> Sanitised JSON (<font color=\"red\">Beware</font>: Clicking will copy text) </html>"
+        );
+
+        // configure the text area and make it scrollable
+        sanitisedJsonTextArea.setFont(TEXT_FONT);
+        sanitisedJsonTextArea.setEditable(false);
+        sanitisedJsonTextArea.setLineWrap(true);
+        sanitisedJsonTextArea.setWrapStyleWord(true);
+
+        final JScrollPane jsonScrollPane = new JScrollPane(sanitisedJsonTextArea);
+        jsonScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        jsonScrollPane.setPreferredSize(new Dimension(250, 250));
+
+        gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        sanitisedJsonPanel.add(jsonScrollPane, gbc);
+
+        sanitisedJsonPanel.setToolTipText(makeExplanatoryTooltip());
+        sanitisedJsonTextArea.setToolTipText(
+            "<html><b><font color=\"red\">Beware</font></b>: Clicking the text will select and copy it</html>"
+        );
 
         // add the fields to keep label
         final JLabel ftkLabel = new JLabel("Fields to keep:");
@@ -248,7 +294,7 @@ public class FetchTweetUI extends JPanel {
         gbc.gridy = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridwidth = 1;
-        strippedJsonPanel.add(ftkLabel, gbc);
+        sanitisedJsonPanel.add(ftkLabel, gbc);
 
         // add the fields to keep text area
         ftkTextArea = new JTextArea(
@@ -270,7 +316,7 @@ public class FetchTweetUI extends JPanel {
         gbc.weighty = 0.3; // use a bit of space but let the stripped JSON have most of it
         gbc.fill = GridBagConstraints.BOTH;
         gbc.gridwidth = 1;
-        strippedJsonPanel.add(ftkScrollPane, gbc);
+        sanitisedJsonPanel.add(ftkScrollPane, gbc);
 
 
         // add stripped JSON titled panel to outer
@@ -282,14 +328,22 @@ public class FetchTweetUI extends JPanel {
         gbc.weighty = 1.0;
         gbc.gridwidth = 4;
         gbc.insets = new Insets(5, 0, 5, 0);
-        this.add(strippedJsonPanel, gbc);
+        this.add(sanitisedJsonPanel, gbc);
 
 
         // BEHAVIOUR
         // clear the text field
         clearButton.addActionListener(e -> tweetIdText.setText(""));
+
+        // clicking the tweet ID/URL field selects all the text in it
+        tweetIdText.addMouseListener(new SelectAllTextOnClickListener(tweetIdText));
+
+        // clicking the full JSON text area selects all the text in it
+        fullJsonTextArea.addMouseListener(new SelectAllTextOnClickListener(fullJsonTextArea));
+
         // update the stripped JSON anytime the checkbox is changed
-        skipMediaCheckbox.addActionListener(e -> updateStrippedJson(fullJsonTextArea.getText()));
+        skipMediaCheckbox.addActionListener(e -> updateSanitisedJson(fullJsonTextArea.getText()));
+
         // paste from clipboard to the full json text area
         pasteFromClipboardButton.addActionListener(e -> {
             final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -299,7 +353,7 @@ public class FetchTweetUI extends JPanel {
                 if (hopefullyJSON != null) {
                     // update the text areas
                     updateTextArea(fullJsonTextArea, hopefullyJSON);
-                    updateStrippedJson(hopefullyJSON);
+                    updateSanitisedJson(hopefullyJSON);
                 }
             } catch (UnsupportedFlavorException | IOException e1) {
                 e1.printStackTrace();
@@ -311,6 +365,43 @@ public class FetchTweetUI extends JPanel {
                 );
             }
         });
+        // override fullJsonTextArea's paste action to update the sanitised json area too
+        final InputMap fullJsonTextAreaInputMap = fullJsonTextArea.getInputMap();
+
+        // - Ctrl-v to paste clipboard
+        final KeyStroke ctrlVKey = KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_MASK);
+        fullJsonTextAreaInputMap.put(ctrlVKey, "paste-and-update-sanitised-panel");
+
+        // - new overriding paste action (not quite as pithy as I had hoped
+        final ActionMap fullJsonTextAreaActionMap = fullJsonTextArea.getActionMap();
+        fullJsonTextAreaActionMap.put(
+            "paste-and-update-sanitised-panel",
+            new ProxyTextAction(
+                "paste-and-update-sanitised-panel",
+                (TextAction) fullJsonTextAreaActionMap.get(DefaultEditorKit.pasteAction),
+                new TextAction("update-sanitised-text-area") {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        updateSanitisedJson(fullJsonTextArea.getText());
+                    }
+                }
+            )
+        );
+
+        // click text area -> selects all text and puts it on the copy clipboard
+        final MouseAdapter copyAction = new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                sanitisedJsonTextArea.setSelectionStart(0);
+                final String text = sanitisedJsonTextArea.getText();
+                sanitisedJsonTextArea.setSelectionEnd(text.length());
+                if (debug) System.out.println("Pushing '" + text + "' to the clipboard");
+                pushToClipboard(text);
+            }
+        };
+        sanitisedJsonTextArea.addMouseListener(copyAction);
+        sanitisedJsonPanel.addMouseListener(copyAction);
+
         // fetch button - fetch tweet JSON and update text areas
         fetchButton.addActionListener(e -> {
             final String txt = tweetIdText.getText();
@@ -331,7 +422,7 @@ public class FetchTweetUI extends JPanel {
                     final String rawJSON = TwitterObjectFactory.getRawJSON(tweet);
 
                     updateTextArea(fullJsonTextArea, rawJSON);
-                    updateStrippedJson(rawJSON);
+                    updateSanitisedJson(rawJSON);
                     pushToClipboard(rawJSON);
 
                 } catch (NumberFormatException nfe) {
@@ -346,24 +437,25 @@ public class FetchTweetUI extends JPanel {
                 }
             }).start();
         });
+
         // fields to keep text area, commit as you type
         ftkTextArea.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
-                updateStrippedJson(fullJsonTextArea.getText());
+                updateSanitisedJson(fullJsonTextArea.getText());
             }
         });
     }
 
     /**
-     * Updates the stripped JSON area, taking into account whether images are wanted
+     * Updates the sanitised JSON area, taking into account whether images are wanted
      * and using the fields specified in {@link #ftkTextArea} to decide which fields
      * to keep. Does nothing when the input is invalid. May be called from the Swing
      * thread or off of it.
      *
      * @param rawJSON The raw JSON to consider.
      */
-    private void updateStrippedJson(final String rawJSON) {
+    private void updateSanitisedJson(final String rawJSON) {
         if (errorState || rawJSON == null || rawJSON.length() == 0) return;
 
         final List<String> fieldsToKeep = Stream.of(ftkTextArea.getText().split("\n"))
@@ -378,9 +470,9 @@ public class FetchTweetUI extends JPanel {
         final Map<String, Object> toKeep =
             buildFieldStructure(skipMediaCheckbox.isSelected() ? fieldsToKeepNoMedia : fieldsToKeep);
 
-        final String strippedJSON = stripJSON(rawJSON, toKeep);
+        final String sanitisedJSON = sanitiseJSON(rawJSON, toKeep);
 
-        updateTextArea(strippedJsonTextArea, strippedJSON);
+        updateTextArea(sanitisedJsonTextArea, sanitisedJSON);
     }
 
     /**
@@ -397,66 +489,15 @@ public class FetchTweetUI extends JPanel {
     }
 
     /**
-     * Creates a titled, bordered panel which includes a text area for the JSON.
-     * Clicking on the text area puts the JSON into the global copy buffer.
-     *
-     * @param title The title of the panel.
-     * @param jsonTextArea The text area to put in the panel.
-     * @return The titled panel.
-     */
-    private JPanel makeJsonPanel(
-        final String title,
-        final JTextArea jsonTextArea
-    ) {
-        // STRUCTURE
-        JPanel panel = makeTitledPanel(title);
-
-        // configure the text area and make it scrollable
-        jsonTextArea.setFont(TEXT_FONT);
-        jsonTextArea.setEditable(false);
-        jsonTextArea.setLineWrap(true);
-        jsonTextArea.setWrapStyleWord(true);
-        jsonTextArea.setToolTipText("Click the text to copy it");
-
-        final JScrollPane strippedJsonScrollPane = new JScrollPane(jsonTextArea);
-        strippedJsonScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        strippedJsonScrollPane.setPreferredSize(new Dimension(250, 250));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        panel.add(strippedJsonScrollPane, gbc);
-
-        // BEHAVIOUR
-        // click text area -> selects all text and puts it on the copy clipboard
-        final MouseAdapter copyAction = new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                jsonTextArea.setSelectionStart(0);
-                final String text = jsonTextArea.getText();
-                jsonTextArea.setSelectionEnd(text.length());
-                if (debug) System.out.println("Pushing '" + text + "' to the clipboard");
-                pushToClipboard(text);
-            }
-        };
-        jsonTextArea.addMouseListener(copyAction);
-        panel.addMouseListener(copyAction);
-
-        return panel;
-    }
-
-    /**
      * Creates a String to use as a tooltip to explain which fields are retained
-     * in the stripped version of the JSON.
+     * in the sanitised version of the JSON.
      *
      * @return An explanatory tooltip.
      */
     private String makeExplanatoryTooltip() {
-        StringBuilder sb = new StringBuilder("<html>");
-        sb.append("The JSON is filtered for only the fields below.<br>");
-        sb.append("<strong>NB</strong> <code>entities.media</code> is not included if images are skipped.<br>");
-        return sb.append("</html>").toString();
+        return "<html>The JSON is filtered for only the fields below.<br>" +
+            "<strong>NB</strong> <code>entities.media</code>" +
+            " is not included if images are skipped.<br></html>";
     }
 
     /**
@@ -481,7 +522,7 @@ public class FetchTweetUI extends JPanel {
      * @param fieldsToKeep Keep the fields in this nested map.
      * @return The desensitised JSON.
      */
-    private String stripJSON(final String tweetJSON, Map<String, Object> fieldsToKeep) {
+    private String sanitiseJSON(final String tweetJSON, Map<String, Object> fieldsToKeep) {
         try {
             JsonNode root = JSON.readValue(tweetJSON, JsonNode.class);
 
@@ -490,7 +531,7 @@ public class FetchTweetUI extends JPanel {
             /* As of 2017-09-27, Twitter is progressively rolling out 280 character tweets,
              * referred to as "extended tweets", and "text" is replaced by "full_text". I am
              * using Twitter4J in extended mode, but as a courtesy to those still running on
-             * standard mode, my "stripped" objects will have "full_text" copied to "text", if
+             * standard mode, my "sanitised" objects will have "full_text" copied to "text", if
              * there is no content there already.
              */
             if (! root.has("text") && root.has("full_text")) {
@@ -540,7 +581,7 @@ public class FetchTweetUI extends JPanel {
      *
      * @param text The text to put into the copy buffer.
      */
-    private void pushToClipboard(String text) {
+    private void pushToClipboard(final String text) {
         final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(new StringSelection(text), null);
     }
@@ -575,5 +616,39 @@ public class FetchTweetUI extends JPanel {
      */
     private String leadingSpaces(final int tabs) {
         return IntStream.range(0, tabs).mapToObj(i -> INDENT).collect(Collectors.joining());
+    }
+
+    /**
+     * Wraps two {@link TextAction}s and pretends they're one.
+     */
+    private class ProxyTextAction extends TextAction {
+        private final TextAction action1;
+        private final TextAction action2;
+
+        ProxyTextAction(final String name, final TextAction firstAction, final TextAction secondAction) {
+            super(name);
+            action1 = firstAction;
+            action2 = secondAction;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            action1.actionPerformed(e);
+            action2.actionPerformed(e);
+        }
+    }
+
+    private class SelectAllTextOnClickListener extends MouseAdapter {
+        private final JTextComponent textComponent;
+
+        SelectAllTextOnClickListener(JTextComponent textComponent) {
+            this.textComponent = textComponent;
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e)  {
+            textComponent.setSelectionStart(0);
+            textComponent.setSelectionEnd(textComponent.getText().length());
+        }
     }
 }
