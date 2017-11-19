@@ -200,7 +200,6 @@ public class FetchTweetUI extends JPanel {
         // Row 2: titled panel with scrollable JSON text area and copy button
         row++;
         fullJsonTextArea = new JTextArea(); // Row 2.1
-        // STRUCTURE
         final JPanel fullJsonPanel = makeTitledPanel(" Full JSON ");
 
         // configure the text area and make it scrollable
@@ -208,6 +207,7 @@ public class FetchTweetUI extends JPanel {
         fullJsonTextArea.setEditable(true);
         fullJsonTextArea.setLineWrap(true);
         fullJsonTextArea.setWrapStyleWord(true);
+        fullJsonTextArea.setToolTipText("Click to select all. Responds to Ctrl-V and Ctrl-C like a normal text area");
 
         final JScrollPane jsonScrollPane1 = new JScrollPane(fullJsonTextArea);
         jsonScrollPane1.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
@@ -260,7 +260,6 @@ public class FetchTweetUI extends JPanel {
         // Row 4: titled panel with scrollable JSON text area and copy button
         row++;
         sanitisedJsonTextArea = new JTextArea();
-        // STRUCTURE
         final JPanel sanitisedJsonPanel = makeTitledPanel(
             "<html> Sanitised JSON (<font color=\"red\">Beware</font>: Clicking will copy text) </html>"
         );
