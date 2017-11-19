@@ -137,7 +137,7 @@ class FetchTweets {
 
         if (inGuiMode()) {
             // Create and set up the window
-            JFrame frame = new JFrame("Fetch Tweet");
+            JFrame frame = new JFrame("Sanitise Tweet");
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
             JComponent gui = new FetchTweetUI(twitter, loadFieldsToKeep(), debug);
