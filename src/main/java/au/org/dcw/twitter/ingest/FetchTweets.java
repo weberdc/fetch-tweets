@@ -15,7 +15,7 @@
  */
 package au.org.dcw.twitter.ingest;
 
-import au.org.dcw.twitter.ingest.ui.FetchTweetUI;
+import au.org.dcw.twitter.ingest.ui.TweetSanitiserUI;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -41,7 +41,6 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -140,7 +139,7 @@ class FetchTweets {
             JFrame frame = new JFrame("Sanitise Tweet");
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-            JComponent gui = new FetchTweetUI(twitter, loadFieldsToKeep(), debug);
+            JComponent gui = new TweetSanitiserUI(twitter, loadFieldsToKeep(), debug);
             frame.setContentPane(gui);
 
             // Display the window

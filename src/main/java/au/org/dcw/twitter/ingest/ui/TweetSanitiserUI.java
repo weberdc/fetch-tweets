@@ -58,7 +58,6 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -71,13 +70,13 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * <p>Creates a GUI for fetching a single Tweet at a time, and displaying the JSON for
- * the Tweet, and a valid JSON subset of the Tweet, either of which can be copied by
- * clicking in their text areas or using the copy buttons. Fields which are retained
+ * <p>Creates a GUI for fetching and sanitising a single Tweet at a time, displaying
+ * the JSON for the Tweet, and a valid JSON subset of the Tweet. The text from the
+ * sanitised field can be copied by clicking on the text. Fields which are retained
  * in the subset are passed in via the constructor and can be edited in the UI.</p>
  */
 @SuppressWarnings("unchecked")
-public class FetchTweetUI extends JPanel {
+public class TweetSanitiserUI extends JPanel {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -100,27 +99,27 @@ public class FetchTweetUI extends JPanel {
      * @param twitter The reference to Twitter's API, provided by {@link au.org.dcw.twitter.ingest.FetchTweets}.
      * @param debug If true, print out debug statements.
      */
-    public FetchTweetUI(
+    public TweetSanitiserUI(
         final Twitter twitter,
-        final List<String> fieldsToKeep,
+        final List<String> cleanFields,
         final boolean debug
     ) {
         this.debug = debug;
-        if (debug) System.out.println(str(buildFieldStructure(fieldsToKeep), 0));
-        buildUI(twitter, fieldsToKeep);
+        if (debug) System.out.println(str(buildFieldStructure(cleanFields), 0));
+        buildUI(twitter, cleanFields);
     }
 
     /**
      * Constructs a nested map of the fields to retain in the stripped version
      * of the the Tweet's JSON.
      *
-     * @param fieldsToKeep The list of field names with implied structure (via '.' delimiters).
-     * @return A nested map version of <code>fieldsToKeep</code>.
+     * @param cleanFields The list of field names with implied structure (via '.' delimiters).
+     * @return A nested map version of <code>cleanFields</code>.
      */
-    private static Map<String, Object> buildFieldStructure(final List<String> fieldsToKeep) {
+    private static Map<String, Object> buildFieldStructure(final List<String> cleanFields) {
         Map<String, Object> map = Maps.newTreeMap();
 
-        for (String f : fieldsToKeep) {
+        for (String f : cleanFields) {
             if (! f.contains(".")) {
                 map.put(f, null);
             } else {
@@ -142,9 +141,9 @@ public class FetchTweetUI extends JPanel {
      * Builds the UI.
      *
      * @param twitter The Twitter API instance, used by an event handler.
-     * @param fieldsToKeep The initial list of fields to keep in the stripped JSON.
+     * @param cleanFields The initial list of fields to keep in the stripped JSON.
      */
-    private void buildUI(final Twitter twitter, final List<String> fieldsToKeep) {
+    private void buildUI(final Twitter twitter, final List<String> cleanFields) {
 
         // STRUCTURE
         setLayout(new GridBagLayout());
@@ -297,7 +296,7 @@ public class FetchTweetUI extends JPanel {
 
         // add the fields to keep text area
         ftkTextArea = new JTextArea(
-            fieldsToKeep.stream().collect(Collectors.joining(", "))
+            cleanFields.stream().collect(Collectors.joining(", "))
         );
         ftkTextArea.setFont(TEXT_FONT.deriveFont(TEXT_FONT.getSize() + 2.0f));
         ftkTextArea.setLineWrap(true);
