@@ -17,6 +17,7 @@ package au.org.dcw.twitter.ingest.ui;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -81,6 +82,7 @@ public class TweetSanitiserUI extends JPanel {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final Font TEXT_FONT = new Font("Courier New", Font.PLAIN, 10);
+    private static final Font ID_URL_FONT = new Font("Arial", Font.PLAIN, 16);
     private static final String INDENT = "  ";
 
     private final boolean debug;
@@ -161,6 +163,7 @@ public class TweetSanitiserUI extends JPanel {
 
         tweetIdText = new JTextField();
         tweetIdText.setToolTipText("Paste or drag your tweet/status ID or URL here");
+        tweetIdText.setFont(ID_URL_FONT);
         tweetIdLabel.setLabelFor(tweetIdText);
         tweetIdText.setDragEnabled(true);
         // dragging text to the field _replaces_ the text, rather than inserting it where it's dropped
@@ -531,9 +534,27 @@ public class TweetSanitiserUI extends JPanel {
              * using Twitter4J in extended mode, but as a courtesy to those still running on
              * standard mode, my "sanitised" objects will have "full_text" copied to "text", if
              * there is no content there already.
+             *
+             * TODO think of the myriad ways in which the full_text will be hidden and how to extract it
+             * - full_text
+             * - extended_tweet.full_text
+             * - retweeted_status.extended_tweet.full_text
+             * - retweeted_status.full_text
              */
-            if (! root.has("text") && root.has("full_text")) {
+            if (root.has("full_text")) {
                 ((ObjectNode) root).set("text", root.get("full_text").deepCopy());
+            }
+            if (root.hasNonNull("truncated") &&
+                root.get("truncated").asBoolean(false) &&
+                has(root, "extended_tweet.full_text")) {
+                ((ObjectNode) root).set("text", get(root, "extended_tweet.full_text").deepCopy());
+            }
+            // not quite right: missing "RT @originalPoster "
+            if (root.hasNonNull("retweeted_status") && has(root, "retweeted_status.full_text")) {
+                ((ObjectNode) root).set("text", get(root, "retweeted_status.full_text").deepCopy());
+            }
+            if (root.hasNonNull("retweeted_status") && has(root, "retweeted_status.extended_tweet.full_text")) {
+                ((ObjectNode) root).set("text", get(root, "retweeted_status.extended_tweet.full_text").deepCopy());
             }
 
             return JSON.writeValueAsString(root);
@@ -544,6 +565,30 @@ public class TweetSanitiserUI extends JPanel {
             PrintWriter stacktrace = new PrintWriter(sw);
             e.printStackTrace(stacktrace);
             return "{\"error\":\"" + e.getMessage() + "\",\"stacktrace\":\"" + sw.toString() + "\"}";
+        }
+    }
+
+    private boolean has(final JsonNode n, final String path) {
+        if (path.contains(".")) {
+            final String head = path.substring(0, path.indexOf('.'));
+            final String tail = path.substring(path.indexOf('.') + 1);
+            return n.has(head) && has(n.get(head), tail);
+        } else {
+            return n.has(path);
+        }
+    }
+
+    private JsonNode get(final JsonNode n, final String path) {
+        if (path.contains(".")) {
+            final String head = path.substring(0, path.indexOf('.'));
+            final String tail = path.substring(path.indexOf('.') + 1);
+            if (n.has(head)) {
+                return get(n.get(head), tail);
+            } else {
+                return JsonNodeFactory.instance.nullNode(); // shouldn't happen if you use "has()" first
+            }
+        } else {
+            return n.get(path);
         }
     }
 
