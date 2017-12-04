@@ -13,7 +13,14 @@ This app will look for tweet IDs on the commandline, or from a file specified on
 the commandline, or will launch a GUI into which can be pasted individual tweet IDs
 or URLs, which can then be fetched. In command line mode, the JSON for the retrieved
 tweets is sent to `stdout`.
- 
+
+### Extra: Sanitising the tweet
+
+An extra feature, which has been better housed in another [project](https://github.com/weberdc/tweet-sanitiser.git)
+remains in this tool, and it is the ability to sanitise the collected or provided
+tweet JSON, leaving only specified fields. This functionality is hidden within the
+main GUI via a closed split pane (expandable from the bottom of the GUI).
+
 In GUI mode, the raw JSON is provided along with a version stripped of many of the
 fields to make it easier to avoid collecting sensitive information. The fields can be
 specified with the `-k` or `--keep-file` commandline option. An example input file
@@ -151,6 +158,11 @@ deleted) to be written to `stdout`. If no IDs are provided on the commandline or
 in a file, then a GUI is launched. Type in or copy and paste a tweet ID or a tweet
 URL into the ID field and press the "Fetch" button to retrieve the JSON for
 that tweet.
+
+If the system property `initial.tweet.id` is set (with the `-D` flag), the value 
+is used for the content for the tweet ID/URL text box in the GUI. For it to work,
+it must be a valid tweet ID or URL (e.g. 
+"https://twitter.com/ABCaustralia/status/927673379238313984");
 
 ## Rate limits
 

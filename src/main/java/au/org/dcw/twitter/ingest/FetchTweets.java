@@ -34,6 +34,7 @@ import twitter4j.conf.ConfigurationBuilder;
 
 import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import java.io.File;
 import java.io.IOException;
@@ -139,12 +140,15 @@ class FetchTweets {
             JFrame frame = new JFrame("Sanitise Tweet");
             frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-            JComponent gui = new TweetSanitiserUI(twitter, loadFieldsToKeep(), debug);
+            TweetSanitiserUI gui = new TweetSanitiserUI(twitter, loadFieldsToKeep(), debug);
             frame.setContentPane(gui);
 
             // Display the window
             frame.setSize(500, 700);
             frame.setVisible(true);
+
+            SwingUtilities.invokeLater(gui::resetTheUI); // now that size info is available
+
 
         } else {
 

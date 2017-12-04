@@ -35,6 +35,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
@@ -43,6 +44,7 @@ import javax.swing.UIManager;
 import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.TextAction;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -93,6 +95,7 @@ public class TweetSanitiserUI extends JPanel {
     private JTextArea sanitisedJsonTextArea;
     private JCheckBox skipMediaCheckbox;
     private JTextArea ftkTextArea;
+    private JSplitPane splitPane;
 
 
     /**
@@ -148,18 +151,26 @@ public class TweetSanitiserUI extends JPanel {
     private void buildUI(final Twitter twitter, final List<String> cleanFields) {
 
         // STRUCTURE
-        setLayout(new GridBagLayout());
+        setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
 
+        final JPanel top = new JPanel(new GridBagLayout());
+        top.setMinimumSize(new Dimension(200, 200));
+        final JPanel bottom = new JPanel(new GridBagLayout());
 
-        // Row 1: ID text box and Get button
+        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, top, bottom);
+        splitPane.setOneTouchExpandable(true);
+
+        this.add(splitPane, BorderLayout.CENTER);
+
+        // Row Top.1: ID text box and Get button
         int row = 1;
         final JLabel tweetIdLabel = new JLabel();
-        tweetIdLabel.setText("Tweet ID/URL:");
+        tweetIdLabel.setText("ID or URL:");
         tweetIdLabel.setToolTipText("Paste or drag your tweet/status ID or URL here");
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(0, 0, 0, 5);
-        this.add(tweetIdLabel, gbc);
+        top.add(tweetIdLabel, gbc);
 
         tweetIdText = new JTextField();
         tweetIdText.setToolTipText("Paste or drag your tweet/status ID or URL here");
@@ -170,14 +181,14 @@ public class TweetSanitiserUI extends JPanel {
         tweetIdText.setTransferHandler(new DropToReplaceTransferHandler());
 
         // example tweet
-        tweetIdText.setText("https://twitter.com/ABCaustralia/status/927673379238313984");
+        tweetIdText.setText(getInitialTweetURL());
 
         gbc = new GridBagConstraints();
         gbc.gridx = 1;
         gbc.gridy = row - 1;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        this.add(tweetIdText, gbc);
+        top.add(tweetIdText, gbc);
 
         final JButton clearButton = new JButton(UIManager.getIcon("InternalFrame.closeIcon"));
         clearButton.setToolTipText("Clear the ID field");
@@ -186,7 +197,7 @@ public class TweetSanitiserUI extends JPanel {
         gbc.gridx = 2;
         gbc.gridy = row - 1;
         gbc.insets = new Insets(0, 5, 0, 0);
-        this.add(clearButton, gbc);
+        top.add(clearButton, gbc);
 
         final JButton fetchButton = new JButton("Fetch");
         fetchButton.setToolTipText("Fetch the JSON for this tweet, put it below and in the copy buffer");
@@ -196,10 +207,10 @@ public class TweetSanitiserUI extends JPanel {
         gbc.gridx = 3;
         gbc.gridy = row - 1;
         gbc.insets = new Insets(0, 2, 0, 0);
-        this.add(fetchButton, gbc);
+        top.add(fetchButton, gbc);
 
 
-        // Row 2: titled panel with scrollable JSON text area and copy button
+        // Row Top.2: titled panel with scrollable JSON text area and copy button
         row++;
         fullJsonTextArea = new JTextArea(); // Row 2.1
         final JPanel fullJsonPanel = makeTitledPanel(" Full JSON ");
@@ -242,11 +253,11 @@ public class TweetSanitiserUI extends JPanel {
         gbc.weighty = 1.0;
         gbc.gridwidth = 4;
         gbc.insets = new Insets(5, 0, 5, 0);
-        this.add(fullJsonPanel, gbc);
+        top.add(fullJsonPanel, gbc);
 
 
-        // Row 3: skip-media checkbox
-        row++;
+        // Row Bottom.1: skip-media checkbox
+        row = 1;
         skipMediaCheckbox = new JCheckBox("Skip images & videos?");
         skipMediaCheckbox.setSelected(false);
         skipMediaCheckbox.setToolTipText("Select this to remove the Tweet's media field");
@@ -256,10 +267,10 @@ public class TweetSanitiserUI extends JPanel {
         gbc.gridy = row - 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridwidth = 4;
-        this.add(skipMediaCheckbox, gbc);
+        bottom.add(skipMediaCheckbox, gbc);
 
 
-        // Row 4: titled panel with scrollable JSON text area and copy button
+        // Row Bottom.2: titled panel with scrollable JSON text area and copy button
         row++;
         sanitisedJsonTextArea = new JTextArea();
         final JPanel sanitisedJsonPanel = makeTitledPanel(
@@ -329,7 +340,7 @@ public class TweetSanitiserUI extends JPanel {
         gbc.weighty = 1.0;
         gbc.gridwidth = 4;
         gbc.insets = new Insets(5, 0, 5, 0);
-        this.add(sanitisedJsonPanel, gbc);
+        bottom.add(sanitisedJsonPanel, gbc);
 
 
         // BEHAVIOUR
@@ -446,6 +457,20 @@ public class TweetSanitiserUI extends JPanel {
                 updateSanitisedJson(fullJsonTextArea.getText());
             }
         });
+    }
+
+    private String getInitialTweetURL() {
+        return System.getProperty(
+            "initial.tweet.id",
+            "https://twitter.com/ABCaustralia/status/927673379238313984"
+        );
+    }
+
+    /**
+     * Sets the split pane up so that the bottom section is entirely hidden
+     */
+    public void resetTheUI() {
+        splitPane.setDividerLocation(1.0);
     }
 
     /**
